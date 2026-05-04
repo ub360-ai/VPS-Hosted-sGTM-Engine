@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  tagging:
+    image: 'gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable'
+    container_name: gtm-cluster
+    restart: always
+    environment:
+      CONTAINER_CONFIG: '${CONTAINER_CONFIG}'
+      PREVIEW_SERVER_URL: '${PREVIEW_SERVER_URL}'
+    expose:
+      - '8080'
+  preview:
+    image: 'gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable'
+    container_name: gtm-preview
+    restart: always
+    environment:
+      CONTAINER_CONFIG: '${CONTAINER_CONFIG}'
+      RUN_AS_PREVIEW_SERVER: 'true'
+    expose:
+      - '8080'
