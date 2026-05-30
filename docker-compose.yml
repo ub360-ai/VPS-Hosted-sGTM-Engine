@@ -1,20 +1,76 @@
 version: '3.8'
+
 services:
   tagging:
     image: 'gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable'
-    container_name: gtm-cluster
-    restart: always
+    restart: on-failure:5
     environment:
       CONTAINER_CONFIG: '${CONTAINER_CONFIG}'
       PREVIEW_SERVER_URL: '${PREVIEW_SERVER_URL}'
+      GOMAXPROCS: '${GOMAXPROCS:-4}'
+      GOMEMLIMIT: '${GOMEMLIMIT:-2048MiB}'
+      GOGC: '${GOGC:-100}'
     expose:
       - '8080'
+    mem_limit: '${TAGGING_MEM_LIMIT:-2560m}'
+    mem_reservation: '${TAGGING_MEM_RESERVATION:-1024m}'
+    cpus: '${TAGGING_CPUS:-4}'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+    deploy:
+      replicas: ${TAGGING_REPLICAS:-3}
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.services.gtm-tagging.loadbalancer.server.port=8080'
+      - 'traefik.http.services.gtm-tagging.loadbalancer.healthcheck.path=/healthz'
+      - 'traefik.http.services.gtm-tagging.loadbalancer.healthcheck.interval=15s'
+      - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie=true'
+      - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie.name=gtm_route'
+    depends_on:
+      - redis
+
   preview:
     image: 'gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable'
     container_name: gtm-preview
-    restart: always
+    restart: on-failure:5
     environment:
       CONTAINER_CONFIG: '${CONTAINER_CONFIG}'
       RUN_AS_PREVIEW_SERVER: 'true'
     expose:
       - '8080'
+    mem_limit: '${PREVIEW_MEM_LIMIT:-1536m}'
+    mem_reservation: '${PREVIEW_MEM_RESERVATION:-512m}'
+    cpus: '${PREVIEW_CPUS:-2}'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: gtm-redis
+    restart: on-failure:5
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1
+    expose:
+      - '6379'
+    mem_limit: '${REDIS_MEM_LIMIT:-768m}'
+    cpus: '${REDIS_CPUS:-1}'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  redis_data:

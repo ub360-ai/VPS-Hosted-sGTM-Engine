@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: gtm-uptime-kuma
+    restart: on-failure:5
+    ports:
+      - '3001:3001'
+    volumes:
+      - kuma_data:/app/data
+    mem_limit: '512m'
+    cpus: '1'
+
+volumes:
+  kuma_data:

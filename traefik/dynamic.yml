@@ -1,0 +1,60 @@
+http:
+  middlewares:
+    gtm-ratelimit:
+      rateLimit:
+        average: 2000
+        burst: 500
+
+    gtm-retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+
+    gtm-circuitbreaker:
+      circuitBreaker:
+        expression: 'NetworkErrorRatio() > 0.10'
+        checkPeriod: 10s
+        fallbackDuration: 30s
+
+    gtm-security-headers:
+      headers:
+        customFrameOptionsValue: 'SAMEORIGIN'
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: 'strict-origin-when-cross-origin'
+
+  routers:
+    gtm-tagging-router:
+      rule: 'Host(`sgtm.updates24-7.swiftloopmarketing.com`)'
+      entryPoints:
+        - websecure
+      middlewares:
+        - gtm-ratelimit
+        - gtm-retry
+        - gtm-circuitbreaker
+        - gtm-security-headers
+      service: gtm-tagging
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    gtm-tagging:
+      loadBalancer:
+        serversTransport: gtm-transport
+        healthCheck:
+          path: /healthz
+          interval: 15s
+          timeout: 5s
+        sticky:
+          cookie:
+            name: gtm_route
+            httpOnly: true
+            secure: true
+
+  serversTransports:
+    gtm-transport:
+      maxIdleConnsPerHost: 100
+      forwardingTimeouts:
+        dialTimeout: 5s
+        responseHeaderTimeout: 15s
+        idleConnTimeout: 90s
