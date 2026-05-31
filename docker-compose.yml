@@ -23,7 +23,7 @@ services:
       start_period: 30s
     stop_grace_period: 30s
     deploy:
-      replicas: ${TAGGING_REPLICAS:-3}
+      replicas: 3
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.services.gtm-tagging.loadbalancer.server.port=8080'

@@ -12,20 +12,20 @@ http:
 
     gtm-circuitbreaker:
       circuitBreaker:
-        expression: 'NetworkErrorRatio() > 0.10'
+        expression: "NetworkErrorRatio() > 0.10"
         checkPeriod: 10s
         fallbackDuration: 30s
 
     gtm-security-headers:
       headers:
-        customFrameOptionsValue: 'SAMEORIGIN'
+        customFrameOptionsValue: "SAMEORIGIN"
         contentTypeNosniff: true
         browserXssFilter: true
-        referrerPolicy: 'strict-origin-when-cross-origin'
+        referrerPolicy: "strict-origin-when-cross-origin"
 
   routers:
     gtm-tagging-router:
-      rule: 'Host(`sgtm.updates24-7.swiftloopmarketing.com`)'
+      rule: "Host(`devsgtm.updates24-7.swiftloopmarketing.com`)"
       entryPoints:
         - websecure
       middlewares:
@@ -58,3 +58,6 @@ http:
         dialTimeout: 5s
         responseHeaderTimeout: 15s
         idleConnTimeout: 90s
+
+
+

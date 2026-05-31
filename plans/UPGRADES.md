@@ -71,9 +71,13 @@ Purpose:
 - Future: async queue buffer for backpressure
 
 ### Phase 3 — Replica Scaling
-**File:** `docker-compose.yml` + Coolify UI
+**File:** `docker-compose.yml` + Coolify Advanced Settings
 
-- `deploy.replicas: 3` on tagging service
+- `deploy.replicas: 3` in docker-compose.yml on tagging service
+- **Critical Coolify step:** In Coolify Service > Advanced, DISABLE:
+  - "Consistent Container Names"
+  - "Custom Container Name" (leave blank)
+  - These inject `container_name` into the compose file, which conflicts with `deploy.replicas`
 - Traefik sticky sessions ensure requests from same client hit same replica
 
 ### Phase 4 — Traefik Resilience
