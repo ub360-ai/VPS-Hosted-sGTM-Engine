@@ -14,12 +14,9 @@ x-tagging: &tagging
   mem_limit: '${TAGGING_MEM_LIMIT:-2560m}'
   mem_reservation: '${TAGGING_MEM_RESERVATION:-1024m}'
   cpus: '${TAGGING_CPUS:-4}'
-  healthcheck:
-    test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/healthz']
-    interval: 15s
-    timeout: 5s
-    retries: 3
-    start_period: 30s
+  # NOTE: No Docker healthcheck — the GTM server image is distroless (no shell, curl, or wget).
+  # Docker health checks that need executables will fail and mark the container 'unhealthy'.
+  # Traefik's external health check (via labels) handles this from outside the container.
   stop_grace_period: 30s
   depends_on:
     - redis
@@ -79,12 +76,7 @@ services:
     mem_limit: '${PREVIEW_MEM_LIMIT:-1536m}'
     mem_reservation: '${PREVIEW_MEM_RESERVATION:-512m}'
     cpus: '${PREVIEW_CPUS:-2}'
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/healthz']
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    # NOTE: No Docker healthcheck — same distroless image as tagging.
     stop_grace_period: 30s
 
   redis:

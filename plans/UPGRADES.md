@@ -37,6 +37,7 @@ VPS: Traefik (Rate Limit / Retry / Security Headers)
 | 4 | **No Backpressure** | Traffic spike overwhelms Go runtime → requests pile up → Go GC thrashing |
 | 5 | **In-Memory State Loss** | Dedup keys lost on restart → duplicate events + re-processing storm |
 | 6 | **No Monitoring** | Crashes discovered by users, not by ops |
+| 7 | **Fake "unhealthy"** | Docker health check (`wget`) fails in distroless container → Docker marks unhealthy → Traefik removes server |
 
 ---
 
@@ -50,12 +51,10 @@ Add to `tagging` service:
 - `mem_limit: 2560m`, `mem_reservation: 1024m` (OOM guard)
 - `cpus: '4'` (CPU ceiling)
 - `GOMAXPROCS=4`, `GOMEMLIMIT=2048MiB` (Go runtime guard)
-- `healthcheck` to `/healthz` with retries
+- **No Docker healthcheck** — the GTM server image is distroless (no shell/curl/wget). A Docker health check would fail and mark the container as unhealthy, causing Traefik to remove it from the backend pool.
 - `stop_grace_period: 30s` (drain connections)
+- **Traefik health check** (via labels) checks `/healthz` from the host — this works because it doesn't need tools inside the container
 - Traefik labels: `sticky.cookie`, `healthcheck.path`
-
-Add to `preview` service:
-- Same health check and resource limits
 
 ### Phase 2 — Redis (Dedup + Buffer)
 **File:** `docker-compose.yml`
