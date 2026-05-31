@@ -10,13 +10,13 @@
 ## Target Architecture
 
 ```
-Cloudflare Edge (orange-cloud)
+Internet (Direct, no proxy)
     │
     ▼
 sgtm.updates24-7.swiftloopmarketing.com
     │
     ▼
-VPS: Traefik (Rate Limit / Retry / Circuit Breaker)
+VPS: Traefik (Rate Limit / Retry / Security Headers)
     │
     ├── gtm-cluster-replica-1 ──┐
     ├── gtm-cluster-replica-2 ──┼── Redis (dedup + buffer)
@@ -79,12 +79,13 @@ Purpose:
 - Traefik sticky sessions ensure requests from same client hit same replica
 
 ### Phase 4 — Traefik Resilience
-**File:** `traefik/dynamic.yml`
+**File:** Docker labels in `docker-compose.yml` (no separate file)
 
-Three middlewares:
-1. **Rate Limit:** 2000 avg, 500 burst (drops excess before hitting backends)
-2. **Retry:** 3 attempts, 100ms interval (recovers from transient errors)
-3. **Circuit Breaker:** Opens when 10%+ of backends error, 10s check period, 30s fallback
+All Traefik configuration lives in the `x-tagging` anchor labels:
+1. **Router:** `gtm-tagging` — HTTPS, Let's Encrypt cert, host-rule-based
+2. **Middlewares** (defined via labels, not file): Rate Limit (2000/500), Retry (3x), Security Headers
+3. **Service:** all 3 replicas register as servers under `gtm-tagging`, health check on `/healthz`, sticky sessions
+4. **Why no `traefik/dynamic.yml`:** File-based config conflicts with Docker-discovered services in Traefik, causing "No available server". Labels-only avoids the merge conflict.
 
 ### Phase 5 — Environment Documentation
 **File:** `.env.example`
@@ -94,23 +95,28 @@ All required env vars documented with defaults and descriptions.
 ### Phase 6 — Monitoring
 **File:** `monitoring/docker-compose.monitor.yml`
 
-Uptime Kuma stack:
-- Pings `/healthz` every 30s
-- Alerts via Telegram/email on failure
-- Persistent volume for config
+Two-layer monitoring:
+- **Uptime Kuma** (`:3001`): Pings `/healthz` every 30s, alerts via Telegram/email on failure. Monitors the public URL — Traefik routes to any healthy backend so an alert only fires if ALL replicas are down.
+- **cAdvisor** (`:8088`): Per-container resource metrics (CPU, memory, network per replica). Use to spot a single misbehaving replica before it takes down the whole pool.
+- Persistent volume for Kuma config
 
-### Phase 7 — Cloudflare (External, No Code)
-- Enable orange-cloud proxy on the DNS record
-- Adds DDoS protection, edge caching, and SSL termination
+---
+
+## Why No Cloudflare Proxy
+Cloudflare proxy (orange cloud) strips the original client IP address. For server-side tracking, the real IP is critical for:
+- Geo-location attribution
+- IP-based deduplication signals
+- Accurate `ip_override` in Meta CAPI events
+
+Traffic flows directly to the VPS. Coolify/Traefik handles SSL via Let's Encrypt HTTP-01 challenge, which works without Cloudflare. SSL renewal is automatic.
 
 ---
 
 ## Files Modified / Created
 
 | File | Action | Phase |
-|---|---|---|
-| `docker-compose.yml` | **Modify** | 1, 2, 3 |
-| `traefik/dynamic.yml` | **Create** | 4 |
+|---|---|---|---|
+| `docker-compose.yml` | **Modify** | 1, 2, 3, 4 |
 | `.env.example` | **Create** | 5 |
 | `monitoring/docker-compose.monitor.yml` | **Create** | 6 |
 

@@ -25,11 +25,37 @@ x-tagging: &tagging
     - redis
   labels:
     - 'traefik.enable=true'
+
+    # ---- Router ----
+    - 'traefik.http.routers.gtm-tagging.rule=Host(`sgtm.updates24-7.swiftloopmarketing.com`)'
+    - 'traefik.http.routers.gtm-tagging.entrypoints=websecure'
+    - 'traefik.http.routers.gtm-tagging.tls=true'
+    - 'traefik.http.routers.gtm-tagging.tls.certresolver=letsencrypt'
+    - 'traefik.http.routers.gtm-tagging.middlewares=gtm-ratelimit@docker,gtm-retry@docker,gtm-sec-headers@docker'
+
+    # ---- Service (all replicas register as servers here) ----
     - 'traefik.http.services.gtm-tagging.loadbalancer.server.port=8080'
     - 'traefik.http.services.gtm-tagging.loadbalancer.healthcheck.path=/healthz'
     - 'traefik.http.services.gtm-tagging.loadbalancer.healthcheck.interval=15s'
+    - 'traefik.http.services.gtm-tagging.loadbalancer.healthcheck.timeout=5s'
     - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie=true'
     - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie.name=gtm_route'
+    - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie.httpOnly=true'
+    - 'traefik.http.services.gtm-tagging.loadbalancer.sticky.cookie.secure=true'
+
+    # ---- Middleware: Rate Limit (2000 req/s avg, 500 burst) ----
+    - 'traefik.http.middlewares.gtm-ratelimit.ratelimit.average=2000'
+    - 'traefik.http.middlewares.gtm-ratelimit.ratelimit.burst=500'
+
+    # ---- Middleware: Retry (3 attempts, 100ms gap) ----
+    - 'traefik.http.middlewares.gtm-retry.retry.attempts=3'
+    - 'traefik.http.middlewares.gtm-retry.retry.initialinterval=100ms'
+
+    # ---- Middleware: Security Headers ----
+    - 'traefik.http.middlewares.gtm-sec-headers.headers.customFrameOptionsValue=SAMEORIGIN'
+    - 'traefik.http.middlewares.gtm-sec-headers.headers.contentTypeNosniff=true'
+    - 'traefik.http.middlewares.gtm-sec-headers.headers.browserXssFilter=true'
+    - 'traefik.http.middlewares.gtm-sec-headers.headers.referrerPolicy=strict-origin-when-cross-origin'
 
 services:
   tagging:

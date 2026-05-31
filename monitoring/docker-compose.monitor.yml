@@ -1,5 +1,28 @@
 version: '3.8'
 
+# =============================================================================
+# SGTM MONITORING STACK
+# =============================================================================
+# Uptime Kuma: external health checks (public URL level)
+# cAdvisor:    per-container resource metrics (replica-level visibility)
+#
+# ---- Recommended Uptime Kuma Monitors ----
+# Set these up in the Kuma web UI at http://<vps>:3001 after deployment:
+#
+# 1. PUBLIC ENDPOINT (catches ALL backends down)
+#    Type: HTTP(s)  |  URL: https://sgtm.updates24-7.swiftloopmarketing.com/healthz
+#    Interval: 30s  |  Retries: 2  |  Alert: Telegram/Email
+#
+# 2. SSL CERTIFICATE EXPIRY
+#    Type: Certificate Info  |  Hostname: sgtm.updates24-7.swiftloopmarketing.com
+#    Interval: 86400s (daily)  |  Alert 14 days before expiry
+#
+# 3. (Optional) INDIVIDUAL REPLICA HEALTH
+#    If Coolify exposes each replica on a separate internal port, add monitors for:
+#    http://<vps>:8080/healthz, http://<vps>:8081/healthz, http://<vps>:8082/healthz
+#    Otherwise the public endpoint above covers all replicas via Traefik.
+# =============================================================================
+
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:latest
@@ -11,6 +34,22 @@ services:
       - kuma_data:/app/data
     mem_limit: '512m'
     cpus: '1'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: gtm-cadvisor
+    restart: on-failure:5
+    ports:
+      - '8088:8080'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    mem_limit: '256m'
+    cpus: '0.5'
+    privileged: true
 
 volumes:
   kuma_data:
